@@ -1,0 +1,23 @@
+version: '2.0'
+networks:
+  default:
+    driver: bridge
+services:
+  autoware:
+    hostname: autoware
+    image: hiono/autoware
+    build: .
+    environment:
+      - DISPLAY=${DISPLAY} # for X
+      - USE_CCACHE=1
+      - CCACHE_DIR=/home/autoware/.ccache
+      - CCACHE=/usr/bin/ccache
+      - PATH=.:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      - ../data:/home/autoware/data
+      - /etc/localtime:/etc/localtime:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro # for X
+    privileged: true
+    security_opt:
+      - label:seccomp:unconfined
+    tty: true
