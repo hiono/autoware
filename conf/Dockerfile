@@ -25,12 +25,15 @@ RUN apt-get -qq update && \
   apt-get autoremove && apt-get autoclean && apt-get clean && rm -rf "/var/cache/apt/archives/*" "/var/lib/apt/lists/*" && \
   echo 'debconf debconf/frontend select Dialog' | debconf-set-selections
 
-RUN mkdir -p /home/autoware /etc/sudoers.d && chown -R 1000:1000 /home/autoware && groupadd -g 1000 autoware && useradd -g autoware -u 1000 autoware -d /home/autoware && echo autoware:autoware | chpasswd && echo 'autoware ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/autoware && chmod 0440 /etc/sudoers.d/autoware
+ENV HOME=/home/autoware USERNAME=autoware QT_X11_NO_MITSHM=1
+RUN mkdir -p $HOME /etc/sudoers.d && chown -R 1000:1000 $HOME && groupadd -g 1000 $USERNAME && useradd -g $USERNAME -u 1000 $USERNAME -d $HOME && echo $USERNAME:$USERNAME | chpasswd && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME && chmod 0440 /etc/sudoers.d/$USERNAME
 USER autoware
-ENV HOME=/home/autoware
 
 # install ros packages
 ENV ROS_DISTRO=kinetic
+
+# Setup .bashrc for ROS
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> $HOME/.bashrc
 
 # bootstrap rosdep
 RUN sudo rosdep init && rosdep update
@@ -67,4 +70,6 @@ RMD_JOBID=$(tsp -l | awk "/RMD/ {print \$1}")\n\
 RMD_PID=$(tsp -p $RMD_JOBID)\n\
 xterm -title "rosrun $RMD_PID"  -e tsp -t $RMD_JOBID &' > $HOME/Autoware/ros/run;\
     chmod 755 $HOME/Autoware/ros/run
-WORKDIR $HOME/Autoware/ros
+WORKDIR $HOME
+# Default CMD
+CMD ["/bin/bash"]
