@@ -1,5 +1,8 @@
 FROM nvidia/cuda:9.1-devel
 LABEL maintainer "Hiroyuki Ono <hiroyuki.ono.jc@renesas.com>"
+LABEL com.nvidia.volumes.needed="nvidia_driver"
+ENV PATH /usr/local/nvidia/bin:${PATH}
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
 ENV TERM=xterm LC_TIME=POSIX LC_COLLATE=C LANG=en_US.UTF-8
 RUN echo 'deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted universe multiverse\n\
 deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates main restricted universe multiverse\n\
