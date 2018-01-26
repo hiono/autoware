@@ -1,8 +1,9 @@
-FROM nvidia/cuda:9.1-devel
+FROM nvidia/cudagl:9.1-devel
 LABEL maintainer "Hiroyuki Ono <hiroyuki.ono.jc@renesas.com>"
 LABEL com.nvidia.volumes.needed="nvidia_driver"
-ENV PATH /usr/local/nvidia/bin:${PATH}
-ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
+ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+
 ENV TERM=xterm LC_TIME=POSIX LC_COLLATE=C LANG=en_US.UTF-8
 RUN echo 'deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted universe multiverse\n\
 deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates main restricted universe multiverse\n\
@@ -14,8 +15,8 @@ ENV PKG="${PKG} binutils binutils-dev build-essential ccache cmake cmake-data cu
 # For ROS
 ENV PKG="${PKG} ros-kinetic-desktop-full ros-kinetic-nmea-msgs ros-kinetic-nmea-navsat-driver ros-kinetic-sound-play ros-kinetic-jsk-visualization ros-kinetic-grid-map ros-kinetic-gps-common ros-kinetic-controller-manager ros-kinetic-ros-control ros-kinetic-ros-controllers ros-kinetic-gazebo-ros-control ros-kinetic-joystick-drivers libnlopt-dev freeglut3-dev qtbase5-dev libqt5opengl5-dev libssh2-1-dev libarmadillo-dev libpcap-dev gksu libgl1-mesa-dev libglew-dev python-wxgtk3.0"
 # Add key
-RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3B4FE6ACC0B21F32 40976EAF437D05B5; \
-    apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 0xB01FA116
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3B4FE6ACC0B21F32 40976EAF437D05B5 && \
+    apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key B01FA116
 # Install
 RUN apt-get -qq update && \
   echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
@@ -52,7 +53,7 @@ RUN sed -i -e '/pkg_check_modules(OpenCV REQUIRED opencv-3.2.0-dev)/s/opencv-/>=
 RUN /bin/echo -e '\n//  This is the temploary patch for CUDA9 build problem\n#if ( __CUDACC_VER_MAJOR__ >=9 )\n#undef  __CUDACC_VER__\n#define __CUDACC_VER__ 90000\n#endif' >> $HOME/Autoware/ros/src/computing/perception/localization/lib/fast_pcl/ndt_gpu/include/fast_pcl/ndt_gpu/common.h
 
 # make
-RUN bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash; ./catkin_make_release --make-args -j3'
+RUN bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash; ./catkin_make_release --make-args -j22'
 RUN mv $HOME/Autoware/ros/run $HOME/Autoware/ros/run.bak;\
     /bin/echo -e '#!/bin/bash\n\
 RCR_EXISTED=$(pgrep -c roscore)\n\
