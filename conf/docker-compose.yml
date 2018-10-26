@@ -1,4 +1,4 @@
-version: '2.0'
+version: '3'
 networks:
   default:
     driver: bridge
@@ -7,6 +7,7 @@ services:
     hostname: autoware
     image: hiono/autoware
     build: .
+    runtime: nvidia
     environment:
       - DISPLAY=${DISPLAY} # for X
       - USE_CCACHE=1
@@ -16,6 +17,7 @@ services:
     volumes:
       - ../data:/home/autoware/data
       - /etc/localtime:/etc/localtime:ro
+      - $HOME/.Xauthority:/home/autoware/.Xauthority:rw
       - /tmp/.X11-unix:/tmp/.X11-unix:ro # for X
     privileged: true
     security_opt:
