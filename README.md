@@ -19,3 +19,29 @@ As follows:
 You need to install Docker Plugin provided by NVIDIA in order to access NVIDIA GPUs from Docker Container.
 
 Please see the Quickstart (https://github.com/NVIDIA/nvidia-docker/#quickstart).
+
+## Build
+
+# Download & Set Autoware version
+
+    Execute the following command.
+
+    $ make AUTOWARE_VERSION=1.7.0 dl_autoware
+
+# Build for cudagl
+
+    $ make AUTOWARE_VERSION=1.7.0 SERVICE_NAME=cudagl clean build
+    
+# Build for opengl (CPU_ONLY)
+
+    $ make AUTOWARE_VERSION=1.7.0 SERVICE_NAME=opengl clean build
+
+# Run shell
+
+    default is ...
+
+    $ make AUTOWARE_VERSION=1.7.0 SERVICE_NAME=opengl sh
+    
+    or
+
+    $ make AUTOWARE_VERSION=1.7.0 SERVICE_NAME=cudagl sh

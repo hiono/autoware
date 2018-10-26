@@ -1,0 +1,126 @@
+diff --git a/ros/src/computing/perception/detection/trafficlight_recognizer/CMakeLists.txt b/ros/src/computing/perception/detection/trafficlight_recognizer/CMakeLists.txt
+index 3b0df5c..2bd38ab 100644
+--- a/ros/src/computing/perception/detection/trafficlight_recognizer/CMakeLists.txt
++++ b/ros/src/computing/perception/detection/trafficlight_recognizer/CMakeLists.txt
+@@ -245,13 +245,18 @@ set(SSD_CAFFE_PATH "$ENV{HOME}/ssdcaffe/distribute")
+ ####################################################################################################
+ if (EXISTS "${SSD_CAFFE_PATH}")
+ 
+-    find_package(CUDA REQUIRED)
++    find_package(CUDA)
++
++IF (NOT CUDA_FOUND)
++    add_definitions(-DCPU_ONLY)
++ENDIF()
+ 
+     add_executable(region_tlr_ssd
+             nodes/region_tlr_ssd/region_tlr_ssd.cpp
+             nodes/region_tlr_ssd/traffic_light_recognizer.cpp
+             )
+ 
++IF (CUDA_FOUND)
+     target_link_libraries(region_tlr_ssd
+             ${catkin_LIBRARIES}
+             ${OpenCV_LIBS}
+@@ -268,6 +273,20 @@ if (EXISTS "${SSD_CAFFE_PATH}")
+             ${CUDA_INCLUDE_DIRS}
+             nodes/region_tlr_ssd/
+             )
++ELSE()
++    target_link_libraries(region_tlr_ssd
++            ${catkin_LIBRARIES}
++            ${OpenCV_LIBS}
++            ${SSD_CAFFE_PATH}/lib/libcaffe.so
++            glog
++            libcontext
++            )
++
++    target_include_directories(region_tlr_ssd PRIVATE
++            ${SSD_CAFFE_PATH}/include
++            nodes/region_tlr_ssd/
++            )
++ENDIF()
+ 
+     add_dependencies(region_tlr_ssd
+             ${catkin_EXPORTED_TARGETS}
+@@ -307,7 +326,11 @@ set(MXNET_PATH "$ENV{HOME}/mxnet/")
+ ####################################################################################################
+ if (EXISTS "${MXNET_PATH}")
+ 
+-    find_package(CUDA REQUIRED)
++    find_package(CUDA)
++
++IF (NOT CUDA_FOUND)
++    add_definitions(-DCPU_ONLY)
++ENDIF()
+ 
+     add_executable(region_tlr_mxnet
+             nodes/region_tlr_mxnet/region_tlr_mxnet.cpp
+@@ -316,6 +339,7 @@ if (EXISTS "${MXNET_PATH}")
+             nodes/region_tlr_mxnet/mxnet_traffic_light_recognizer.h
+             )
+ 
++IF (CUDA_FOUND)
+     target_link_libraries(region_tlr_mxnet
+             ${catkin_LIBRARIES}
+             ${OpenCV_LIBS}
+@@ -335,6 +359,23 @@ if (EXISTS "${MXNET_PATH}")
+             nodes/region_tlr_mxnet/
+             include
+             )
++ELSE()
++    target_link_libraries(region_tlr_mxnet
++            ${catkin_LIBRARIES}
++            ${OpenCV_LIBS}
++            ${MXNET_PATH}/lib/libmxnet.so
++            libcontext
++            )
++
++    target_include_directories(region_tlr_mxnet PRIVATE
++            ${MXNET_PATH}/nnvm/include/
++            ${MXNET_PATH}/cpp-package/include/
++            ${MXNET_PATH}/include/
++            ${MXNET_PATH}/dmlc-core/include/
++            nodes/region_tlr_mxnet/
++            include
++            )
++ENDIF()
+ 
+     add_dependencies(region_tlr_mxnet
+             ${catkin_EXPORTED_TARGETS}
+diff --git a/ros/src/computing/perception/detection/vision_detector/packages/vision_ssd_detect/CMakeLists.txt b/ros/src/computing/perception/detection/vision_detector/packages/vision_ssd_detect/CMakeLists.txt
+index 98066b3..91ec0f7 100644
+--- a/ros/src/computing/perception/detection/vision_detector/packages/vision_ssd_detect/CMakeLists.txt
++++ b/ros/src/computing/perception/detection/vision_detector/packages/vision_ssd_detect/CMakeLists.txt
+@@ -57,11 +57,16 @@ set(SSD_CAFFE_PATH "$ENV{HOME}/ssdcaffe/distribute")
+ ####################################################################################################
+ if (EXISTS "${SSD_CAFFE_PATH}")
+ 
++IF (NOT CUDA_FOUND)
++    add_definitions(-DCPU_ONLY)
++ENDIF()
++
+     add_executable(vision_ssd_detect
+             src/vision_ssd_detect.cpp
+             src/vision_ssd_detect_node.cpp
+             )
+ 
++IF (CUDA_FOUND)
+     target_link_libraries(vision_ssd_detect
+             ${catkin_LIBRARIES}
+             ${OpenCV_LIBRARIES}
+@@ -71,6 +76,14 @@ if (EXISTS "${SSD_CAFFE_PATH}")
+             ${SSD_CAFFE_PATH}/lib/libcaffe.so
+             glog
+             )
++ELSE()
++    target_link_libraries(vision_ssd_detect
++            ${catkin_LIBRARIES}
++            ${OpenCV_LIBRARIES}
++            ${SSD_CAFFE_PATH}/lib/libcaffe.so
++            glog
++            )
++ENDIF()
+ 
+     target_include_directories(vision_ssd_detect PRIVATE
+             ${SSD_CAFFE_PATH}/include

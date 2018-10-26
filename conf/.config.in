@@ -1,0 +1,3 @@
+ROS_DISTRO=kinetic
+USER=autoware
+HOME=/home/$USER

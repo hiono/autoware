@@ -1,0 +1,26 @@
+version: '2.3'
+networks:
+  default:
+    driver: bridge
+services:
+  autoware:
+    runtime: nvidia
+    hostname: autoware
+    image: autoware/{{SERVICE_NAME}}:{{AUTOWARE_VERSION}}
+    build: 
+      context: ../
+      dockerfile: conf/Dockerfile.{{SERVICE_NAME}}
+      # args:
+      #   from: {{FROM}}
+    environment:
+      - DISPLAY=${DISPLAY} # for X
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - ../work:{{HOME}}/work
+      - ../data:{{HOME}}/data
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /etc/localtime:/etc/localtime:ro
+    privileged: true
+    security_opt:
+      - label:seccomp:unconfined
+    tty: true
