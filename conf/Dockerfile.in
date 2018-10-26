@@ -1,0 +1,128 @@
+FROM {{FROM}}
+LABEL maintainer "Hiroyuki Ono <hiroyuki.ono.jc@renesas.com>"
+LABEL com.nvidia.volumes.needed="nvidia_driver"
+
+SHELL ["/bin/bash", "-c"]
+
+ENV FROM {{FROM}}
+ENV PATH /usr/local/nvidia/bin:${PATH}
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
+ENV CMAKE_LIBRARY_PATH /usr/local/cuda/lib64/stubs:${CMAKE_LIBRARY_PATH}
+ENV LIBRARY_PATH /usr/local/cuda/lib64/stubs:${LIBRARY_PATH}
+ENV NVIDIA_REQUIRE_DRIVER "driver>=390"
+ENV NVIDIA_VISIBLE_DEVICES ${NVIDIA_VISIBLE_DEVICES:-all}
+ENV NVIDIA_DRIVER_CAPABILITIES graphics,display,compute,utility,video
+ENV LC_ALL=C
+
+# install ros packages
+ENV ROS_DISTRO={{ROS_DISTRO}}
+# Autoware
+ENV AUTOWARE_VERSION={{AUTOWARE_VERSION}}
+
+RUN sed -i".bak" -e 's#http://\(archive\|security\).ubuntu.com/ubuntu#mirror://mirrors.ubuntu.com/mirrors.txt#g' /etc/apt/sources.list
+RUN echo "Acquire::HTTP::Timeout "600";" >> /etc/apt/apt.conf.d/02timeout
+RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+RUN apt-get -qq update
+RUN apt-get -qq install -y curl gnupg apt-utils
+RUN curl -fsSL https://www.ubuntulinux.jp/ubuntu-ja-archive-keyring.gpg | apt-key add - > /dev/null
+RUN curl -fsSL https://www.ubuntulinux.jp/ubuntu-jp-ppa-keyring.gpg | apt-key add - > /dev/null
+RUN echo "deb http://packages.ros.org/ros/ubuntu $(cat /etc/lsb-release | grep DISTRIB_CODENAME | cut -d= -f2) main" > /etc/apt/sources.list.d/ros-latest.list
+RUN curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | apt-key add - > /dev/null
+
+# Install
+RUN apt-get -qq update
+RUN apt-get --auto-remove --no-install-recommends -qq -y install language-pack-en
+RUN dpkg-reconfigure -f noninteractive locales
+RUN apt-get --fix-missing --fix-broken -y install binutils binutils-dev build-essential ccache cmake cmake-data gawk gettext git grep install-info keychain less make pkg-config python2.7-minimal sed sudo task-spooler texinfo vim wget zlib1g-dev tmux linux-tools-generic gdb ros-{{ROS_DISTRO}}-desktop-full ros-{{ROS_DISTRO}}-controller-manager ros-{{ROS_DISTRO}}-gazebo-ros-control ros-{{ROS_DISTRO}}-gps-common ros-{{ROS_DISTRO}}-joystick-drivers ros-{{ROS_DISTRO}}-ros-control ros-{{ROS_DISTRO}}-ros-controllers ros-{{ROS_DISTRO}}-sound-play ros-{{ROS_DISTRO}}-grid-* ros-{{ROS_DISTRO}}-jsk-* ros-{{ROS_DISTRO}}-nmea-* freeglut3-dev libarmadillo-dev libgl1-mesa-dev libglew-dev libnlopt-dev libpcap-dev libqt5opengl5-dev libssh2-1-dev python-wxgtk3.0 qtbase5-dev google-perftools libgoogle-perftools-dev
+RUN apt-get --fix-missing --fix-broken --no-install-recommends -y upgrade
+RUN apt-get --fix-missing --fix-broken --no-install-recommends -y dist-upgrade
+RUN apt-get --fix-missing --fix-broken --no-install-recommends -f -y install
+# Caffe
+# RUN apt-get --fix-missing --fix-broken -y install libprotobuf-dev libleveldb-dev libsnappy-dev libhdf5-serial-dev protobuf-compiler libgflags-dev libgoogle-glog-dev liblmdb-dev  python-pip python-dev python-numpy python-scipy python-opencv libatlas-base-dev
+RUN apt-get --fix-missing --fix-broken -y install libprotobuf-dev libleveldb-dev libsnappy-dev libhdf5-serial-dev protobuf-compiler libgflags-dev libgoogle-glog-dev liblmdb-dev  python-pip python-dev python-numpy python-scipy python-opencv libopenblas-dev
+RUN apt-get --fix-missing --fix-broken --no-install-recommends -y install libboost-all-dev
+# Purge
+RUN apt-get autoremove --purge
+RUN apt-get autoclean
+RUN apt-get clean
+RUN rm -rf "/var/cache/apt/archives/*" "/var/lib/apt/lists/*"
+RUN echo 'debconf debconf/frontend select Dialog' | debconf-set-selections
+RUN SRC=/usr/lib/linux-tools/*-generic/perf; DEST=/usr/local/bin/perf; if [ -e ${SRC} ]&&[ ! -e ${DEST} ];then ln -s /usr/lib/linux-tools/*-generic/perf ${DEST}; fi; unset SRC DEST
+
+# bootstrap rosdep
+RUN source /opt/ros/{{ROS_DISTRO}}/setup.bash; rosdep init
+
+RUN mkdir -p {{HOME}} /etc/sudoers.d
+RUN chown -R 1000:1000 {{HOME}}
+RUN groupadd -g 1000 {{USER}}
+RUN useradd -g {{USER}} -u 1000 {{USER}} -d {{HOME}}
+RUN echo {{USER}}:{{USER}} | chpasswd
+RUN echo "{{USER}} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/{{USER}}
+RUN chmod 0440 /etc/sudoers.d/{{USER}}
+USER {{USER}}
+
+# Copy FILES
+COPY Autoware {{HOME}}/Autoware
+COPY conf/patches {{HOME}}/patches
+
+# Setup .bashrc for ROS
+RUN echo 'set -g default-command /bin/bash' > {{HOME}}/.tmux.conf
+RUN echo 'set -g default-shell /bin/bash' >> {{HOME}}/.tmux.conf
+RUN echo 'source /opt/ros/{{ROS_DISTRO}}/setup.bash' > {{HOME}}/.bashrc
+RUN echo 'source {{HOME}}/Autoware/ros/devel/setup.bash' >> {{HOME}}/.bashrc
+RUN echo 'export ROS_HOSTNAME=localhost' >> {{HOME}}/.bashrc
+RUN echo 'export ROS_MASTER_URI=http://localhost:11311' >> {{HOME}}/.bashrc
+RUN echo "export OPENBLAS_NUM_THREADS=$(nproc)" >> {{HOME}}/.bashrc
+RUN echo '[ -z ${TMUX} ] && exec tmux' > {{HOME}}/.bash_profile
+
+# cp Makefile.config.example Makefile.config
+# sed -i '8s/.*/CPU_ONLY := 1/' Makefile.config # Line 8: CPU only
+# sed -i '33s/.*/BLAS := open/' Makefile.config # Line 33: to use OpenBLAS
+
+# ssd/Caffe
+RUN git clone https://github.com/weiliu89/caffe.git {{HOME}}/ssdcaffe
+WORKDIR {{HOME}}/ssdcaffe
+RUN git checkout -b ssd origin/ssd
+RUN cp Makefile.config.example Makefile.config
+RUN patch < {{HOME}}/patches/ssdcaffe.patch.{{SERVICE_NAME}}
+# Caffe build
+RUN make all -j64
+RUN make distribute
+# Caffe test (if u check caffe)
+# RUN make test -j64
+# RUN make runtest
+# RUN ./data/mnist/get_mnist.sh
+# RUN ./examples/mnist/create_mnist.sh
+# RUN ./build/tools/caffe time -model ./examples/mnist/lenet_train_test.prototxt
+
+WORKDIR {{HOME}}
+# Autoware
+RUN source /opt/ros/{{ROS_DISTRO}}/setup.bash; rosdep update
+RUN sudo chown -R autoware:autoware {{HOME}}/Autoware
+RUN cd {{HOME}}/Autoware/ros/src; source /opt/ros/{{ROS_DISTRO}}/setup.bash; catkin_init_workspace
+# patch for Autoware
+RUN cd {{HOME}}/Autoware; patch -p1 < {{HOME}}/patches/autoware.patch.{{AUTOWARE_VERSION}}
+RUN cd {{HOME}}/Autoware/ros/src/util/packages; git clone https://github.com/MoriKen254/timed_roslaunch.git
+
+# make
+RUN cd {{HOME}}/Autoware/ros; source /opt/ros/{{ROS_DISTRO}}/setup.bash; ./catkin_make_release --make-args --jobs=64 --load-average=8 --max-load=10
+# RUN cd {{HOME}}/Autoware/ros; source /opt/ros/{{ROS_DISTRO}}/setup.bash; ./catkin_make_release --make-args --jobs=64 --load-average=8 --max-load=10 || (cd {{HOME}}/Autoware/ros/build; make  || echo Failed)
+
+# Setup for Autoware running
+RUN cd {{HOME}}/Autoware/ros
+RUN mv run run.bak
+RUN /bin/echo -e '#!/bin/bash\n\
+tmux rename-window autoware\n\
+tmux split-window -v -t autoware.0\n\
+tmux split-window -v -t autoware.1\n\
+tmux split-window -v -t autoware.2\n\
+tmux select-layout tiled\n\
+tmux send-keys -t autoware.1 "[ $(pgrep -c roscore) -eq 0 ] && roscore || (echo roscore is running; exit 1)" C-m\n\
+tmux send-keys -t autoware.2 "sudo ${HOME}/Autoware/ros/run_proc_manager" C-m\n\
+tmux send-keys -t autoware.3 "rosrun runtime_manager runtime_manager_dialog.py" C-m\n\
+' > {{HOME}}/run
+RUN chmod 755 {{HOME}}/run
+WORKDIR {{HOME}}
+
+# Default CMD
+CMD ["/bin/bash" "--login"]
